@@ -142,6 +142,7 @@ void Sub::init_ardupilot()
     USERHOOK_INIT
 #endif
 
+#ifdef HAS_BAROMETER
     // Init baro and determine if we have external (depth) pressure sensor
     init_barometer(false);
     barometer.update();
@@ -166,6 +167,7 @@ void Sub::init_ardupilot()
         EKF2.set_baro_alt_noise(0.1f);
         EKF3.set_baro_alt_noise(0.1f);
     }
+#endif
 
     leak_detector.init();
 
@@ -206,7 +208,7 @@ void Sub::init_ardupilot()
     // disable safety if requested
     BoardConfig.init_safety();    
     
-    hal.console->print("\nInit complete");
+    hal.console->print("\nInit complete\n");
 
     // flag that initialisation has completed
     ap.initialised = true;

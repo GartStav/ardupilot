@@ -151,6 +151,7 @@ extern bool g_nsh_should_exit;
 // init - // init - initialise serial ports
 void AP_SerialManager::init()
 {
+    hal.console->print("Init serial manager\n");
     // initialise pointers to serial ports
     state[1].uart = hal.uartC;  // serial1, uartC, normally telem1
     state[2].uart = hal.uartD;  // serial2, uartD, normally telem2
