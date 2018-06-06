@@ -57,6 +57,8 @@ void Sub::init_ardupilot()
 
     // setup first port early to allow BoardConfig to report errors
     gcs().chan(0).setup_uart(serial_manager, AP_SerialManager::SerialProtocol_MAVLink, 0);
+    // TODO here we would need to setup serial manager to work with the sensor board.
+    // For now initialization and setup will be done in ArduSub.cpp
 
     // init cargo gripper
 #if GRIPPER_ENABLED == ENABLED

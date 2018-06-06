@@ -33,6 +33,7 @@ const AP_Scheduler::Task Sub::scheduler_tasks[] = {
     SCHED_TASK(update_batt_compass,   10,    120),
     SCHED_TASK(read_rangefinder,      20,    100),
     SCHED_TASK(update_altitude,       10,    100),
+    SCHED_TASK(read_mavlink_sensors,  10,    100),
     SCHED_TASK(three_hz_loop,          3,     75),
     SCHED_TASK(update_turn_counter,   10,     50),
     SCHED_TASK(compass_accumulate,   100,    100),
@@ -78,7 +79,6 @@ const AP_Scheduler::Task Sub::scheduler_tasks[] = {
 #endif
 };
 
-
 void Sub::setup()
 {
     hal.console->print("Hi, Artem!\n");
@@ -93,6 +93,8 @@ void Sub::setup()
     // setup initial performance counters
     perf_info_reset();
     fast_loopTimer = AP_HAL::micros();
+
+    init_mavlink_sensors();
 }
 
 /*
@@ -432,6 +434,77 @@ void Sub::update_altitude()
     if (should_log(MASK_LOG_CTUN)) {
         Log_Write_Control_Tuning();
     }
+}
+
+#define BUFFER_LENGTH 2041 // minimum buffer size that can be used with qnx (I don't know why)
+
+void Sub::init_mavlink_sensors()
+{
+    printf("init mavlink sensors \n");
+
+    char target_ip[100];
+
+    _sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
+
+    // CSet target ip to localhost
+    strcpy(target_ip, "127.0.0.1");
+
+    const int CLIENT_ADDRESS = 14550;
+    memset(&_locAddr, 0, sizeof(_locAddr));
+    _locAddr.sin_family = AF_INET;
+    _locAddr.sin_addr.s_addr = INADDR_ANY;
+    _locAddr.sin_port = htons(CLIENT_ADDRESS);
+
+    /* Bind the socket to port 14551 - necessary to receive packets from qgroundcontrol */
+    if (-1 == bind(_sock,(struct sockaddr *)&_locAddr, sizeof(struct sockaddr)))
+    {
+        perror("error bind failed");
+        close(_sock);
+        exit(EXIT_FAILURE);
+    }
+
+    if (fcntl(_sock, F_SETFL, O_NONBLOCK | O_ASYNC) < 0)
+    {
+        fprintf(stderr, "error setting nonblocking: %s\n", strerror(errno));
+        close(_sock);
+        exit(EXIT_FAILURE);
+    }
+
+    const int SERVER_ADDRESS = 14551;
+    memset(&_gcAddr, 0, sizeof(_gcAddr));
+    _gcAddr.sin_family = AF_INET;
+    _gcAddr.sin_addr.s_addr = inet_addr(target_ip);
+    _gcAddr.sin_port = htons(SERVER_ADDRESS);
+}
+
+void Sub::read_mavlink_sensors()
+{
+    ssize_t recsize;
+    uint8_t buf[BUFFER_LENGTH];
+    unsigned int temp = 0;
+
+    memset(buf, 0, BUFFER_LENGTH);
+    recsize = recvfrom(_sock, (void *)buf, BUFFER_LENGTH, 0, (struct sockaddr *)&_gcAddr, &_fromlen);
+    if (recsize > 0)
+    {
+        // Something received - print out all bytes and parse packet
+        mavlink_message_t msg;
+        mavlink_status_t status;
+
+        printf("Bytes Received: %d\nDatagram: ", (int)recsize);
+        for (int i = 0; i < recsize; ++i)
+        {
+            temp = buf[i];
+            printf("%02x ", (unsigned char)temp);
+            if (mavlink_parse_char(MAVLINK_COMM_0, buf[i], &msg, &status))
+            {
+                // Packet received
+                printf("\nReceived packet: SYS: %d, COMP: %d, LEN: %d, MSG ID: %d\n", msg.sysid, msg.compid, msg.len, msg.msgid);
+            }
+        }
+        printf("\n");
+    }
+    memset(buf, 0, BUFFER_LENGTH);
 }
 
 AP_HAL_MAIN_CALLBACKS(&sub);

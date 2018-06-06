@@ -25,6 +25,23 @@
 #include <stdio.h>
 #include <stdarg.h>
 
+// these are needed for socket programming
+#include <stdio.h>
+#include <errno.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <time.h>
+/* Linux / MacOS POSIX timer headers */
+#include <sys/time.h>
+#include <time.h>
+#include <arpa/inet.h>
+#include <stdbool.h> /* required for the definition of bool in C99 */
+
 #include <AP_HAL/AP_HAL.h>
 
 // Common dependencies
@@ -450,6 +467,12 @@ private:
     uint32_t last_pilot_yaw_input_ms;
     uint32_t fs_terrain_recover_start_ms = 0;
 
+    // socket stuff for communication of mavlink sensors
+    int _sock;
+    struct sockaddr_in _gcAddr;
+    struct sockaddr_in _locAddr;
+    socklen_t _fromlen;
+
     static const AP_Scheduler::Task scheduler_tasks[];
     static const AP_Param::Info var_info[];
     static const struct LogStructure log_structure[];
@@ -470,6 +493,8 @@ private:
     void update_turn_counter();
     void read_AHRS(void);
     void update_altitude();
+    void init_mavlink_sensors();
+    void read_mavlink_sensors();
     void set_home_state(enum HomeState new_home_state);
     bool home_is_set();
     float get_smoothing_gain();
