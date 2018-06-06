@@ -99,6 +99,7 @@
 #include "Parameters.h"
 #include "AP_Arming_Sub.h"
 #include "GCS_Sub.h"
+#include "sensors_Mavlink.h"
 
 // libraries which are dependent on #defines in defines.h and/or config.h
 #if OPTFLOW == ENABLED
@@ -492,9 +493,20 @@ private:
     void update_GPS(void);
     void update_turn_counter();
     void read_AHRS(void);
-    void update_altitude();
+    void update_altitude(); // update altitude from HAL
+    void update_altitude(const mavlink_message_t &msg); // update altitude from the external data
+    void update_imu(const mavlink_message_t &msg);
+    void update_gps(const mavlink_message_t &msg);
+    void update_attitude(const mavlink_message_t &msg);
+    void sensor_frame_update();
+    inline const altitude_sensor_t get_altitude() const;
+    inline const attitude_sensor_t get_attitude() const;
+    inline const imu_sensor_t get_imu() const;
+    inline const gps_sensor_t get_gps() const;
+    void Sub::get_last_sensor_frame(sensor_frame_t *sensor_frame) const;
     void init_mavlink_sensors();
     void read_mavlink_sensors();
+    void handle_new_message(const mavlink_message_t &msg);
     void set_home_state(enum HomeState new_home_state);
     bool home_is_set();
     float get_smoothing_gain();

@@ -436,6 +436,8 @@ void Sub::update_altitude()
     }
 }
 
+// Initialize socket to receive sensor data over UDP
+
 #define BUFFER_LENGTH 2041 // minimum buffer size that can be used with qnx (I don't know why)
 
 void Sub::init_mavlink_sensors()
@@ -477,6 +479,29 @@ void Sub::init_mavlink_sensors()
     _gcAddr.sin_port = htons(SERVER_ADDRESS);
 }
 
+void Sub::handle_new_message(const mavlink_message_t &msg)
+{
+    switch (msg)
+    {
+    case MAVLINK_MSG_ID_ALTITUDE:
+        update_altitude(msg);
+        break;
+    case MAVLINK_MSG_ID_RAW_IMU:
+        update_imu(msg);
+        break;
+    case MAVLINK_MSG_ID_ATTITUDE:
+        update_attitude(msg);
+        break;
+    case MAVLINK_MSG_ID_GLOBAL_POSITION_INT:
+        update_gps(msg);
+        break;
+    default:
+        printf("Unhandled message %d \n", msg.msgid);
+        break;
+    }
+}
+
+// Read mavlink sensor data and cashes them into structure in sensors.cpp
 void Sub::read_mavlink_sensors()
 {
     ssize_t recsize;
@@ -501,6 +526,7 @@ void Sub::read_mavlink_sensors()
                 // Packet received
                 printf("\nReceived packet: SYS: %d, COMP: %d, LEN: %d, MSG ID: %d\n", msg.sysid, msg.compid, msg.len, msg.msgid);
             }
+            handle_new_message(msg);
         }
         printf("\n");
     }
