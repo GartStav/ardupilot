@@ -499,11 +499,11 @@ private:
     void update_gps(const mavlink_message_t &msg);
     void update_attitude(const mavlink_message_t &msg);
     void sensor_frame_update();
-    inline const altitude_sensor_t get_altitude() const;
-    inline const attitude_sensor_t get_attitude() const;
-    inline const imu_sensor_t get_imu() const;
-    inline const gps_sensor_t get_gps() const;
-    void Sub::get_last_sensor_frame(sensor_frame_t *sensor_frame) const;
+    inline const mavlink_altitude_t get_altitude() const;
+    inline const mavlink_attitude_t get_attitude() const;
+    inline const mavlink_raw_imu_t get_imu() const;
+    inline const mavlink_global_position_int_t get_gps() const;
+    void get_last_sensor_frame(sensor_frame_t *sensor_frame) const;
     void init_mavlink_sensors();
     void read_mavlink_sensors();
     void handle_new_message(const mavlink_message_t &msg);

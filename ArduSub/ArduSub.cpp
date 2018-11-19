@@ -30,14 +30,15 @@ const AP_Scheduler::Task Sub::scheduler_tasks[] = {
 #if OPTFLOW == ENABLED
     SCHED_TASK(update_optical_flow,  200,    160),
 #endif
-    SCHED_TASK(update_batt_compass,   10,    120),
-    SCHED_TASK(read_rangefinder,      20,    100),
-    SCHED_TASK(update_altitude,       10,    100),
-    SCHED_TASK(read_mavlink_sensors,  10,    100),
+//    SCHED_TASK(update_batt_compass,   10,    120),
+//    SCHED_TASK(read_rangefinder,      20,    100),
+//    SCHED_TASK(update_altitude,       10,    100),
+    SCHED_TASK(read_mavlink_sensors,  10,    100), // TODO we should run this faster - 20 Hz?
+    SCHED_TASK(sensor_frame_update,   10,    100),
     SCHED_TASK(three_hz_loop,          3,     75),
     SCHED_TASK(update_turn_counter,   10,     50),
-    SCHED_TASK(compass_accumulate,   100,    100),
-    SCHED_TASK(barometer_accumulate,  50,     90),
+//    SCHED_TASK(compass_accumulate,   100,    100),
+//    SCHED_TASK(barometer_accumulate,  50,     90),
     SCHED_TASK(update_notify,         50,     90),
     SCHED_TASK(one_hz_loop,            1,    100),
     SCHED_TASK(gcs_check_input,      400,    180),
@@ -56,9 +57,9 @@ const AP_Scheduler::Task Sub::scheduler_tasks[] = {
 #if RPM_ENABLED == ENABLED
     SCHED_TASK(rpm_update,            10,    200),
 #endif
-    SCHED_TASK(compass_cal_update,   100,    100),
-    SCHED_TASK(accel_cal_update,      10,    100),
-    SCHED_TASK(terrain_update,        10,    100),
+//    SCHED_TASK(compass_cal_update,   100,    100),
+//    SCHED_TASK(accel_cal_update,      10,    100),
+//    SCHED_TASK(terrain_update,        10,    100),
 #if GRIPPER_ENABLED == ENABLED
     SCHED_TASK(gripper_update,            10,     75),
 #endif
@@ -81,7 +82,7 @@ const AP_Scheduler::Task Sub::scheduler_tasks[] = {
 
 void Sub::setup()
 {
-    hal.console->print("Hi, Artem!\n");
+    printf("Hi, Artem!\n");
     // Load the default values of variables listed in var_info[]s
     AP_Param::setup_sketch_defaults();
 
@@ -160,6 +161,10 @@ void Sub::loop()
 void Sub::fast_loop()
 {
     // update INS immediately to get current gyro data populated
+    //ins.update();
+
+    // we need to update from mavlink here
+
     ins.update();
 
     if (control_mode != MANUAL) { //don't run rate controller in manual mode
@@ -355,7 +360,8 @@ void Sub::three_hz_loop()
 // one_hz_loop - runs at 1Hz
 void Sub::one_hz_loop()
 {
-    hal.console->print("1 Hz loop passed /n");
+    hal.console->print("1 Hz loop passed \n");
+    printf("1 Hz loop passed \n");
     bool arm_check = arming.pre_arm_checks(false);
     ap.pre_arm_check = arm_check;
     AP_Notify::flags.pre_arm_check = arm_check;
@@ -381,6 +387,10 @@ void Sub::one_hz_loop()
 
     // log terrain data
     terrain_logging();
+
+    Vector3f vec_neu;
+    current_loc.get_vector_from_origin_NEU(vec_neu);
+    printf("Current location (%f, %f, %f) \n", vec_neu.x, vec_neu.y, vec_neu.z);
 }
 
 // called at 50hz
@@ -481,18 +491,22 @@ void Sub::init_mavlink_sensors()
 
 void Sub::handle_new_message(const mavlink_message_t &msg)
 {
-    switch (msg)
+    switch (msg.msgid)
     {
     case MAVLINK_MSG_ID_ALTITUDE:
+        printf("received message %d \n", msg.msgid);
         update_altitude(msg);
         break;
     case MAVLINK_MSG_ID_RAW_IMU:
+        printf("received message %d \n", msg.msgid);
         update_imu(msg);
         break;
     case MAVLINK_MSG_ID_ATTITUDE:
+        printf("received message %d \n", msg.msgid);
         update_attitude(msg);
         break;
     case MAVLINK_MSG_ID_GLOBAL_POSITION_INT:
+        printf("received message %d \n", msg.msgid);
         update_gps(msg);
         break;
     default:
@@ -506,7 +520,7 @@ void Sub::read_mavlink_sensors()
 {
     ssize_t recsize;
     uint8_t buf[BUFFER_LENGTH];
-    unsigned int temp = 0;
+    // unsigned int temp = 0;
 
     memset(buf, 0, BUFFER_LENGTH);
     recsize = recvfrom(_sock, (void *)buf, BUFFER_LENGTH, 0, (struct sockaddr *)&_gcAddr, &_fromlen);
@@ -516,19 +530,19 @@ void Sub::read_mavlink_sensors()
         mavlink_message_t msg;
         mavlink_status_t status;
 
-        printf("Bytes Received: %d\nDatagram: ", (int)recsize);
+        // printf("Bytes Received: %d\nDatagram: ", (int)recsize);
         for (int i = 0; i < recsize; ++i)
         {
-            temp = buf[i];
-            printf("%02x ", (unsigned char)temp);
+            // temp = buf[i];
+            // printf("%02x ", (unsigned char)temp);
             if (mavlink_parse_char(MAVLINK_COMM_0, buf[i], &msg, &status))
             {
                 // Packet received
-                printf("\nReceived packet: SYS: %d, COMP: %d, LEN: %d, MSG ID: %d\n", msg.sysid, msg.compid, msg.len, msg.msgid);
+                // printf("\nReceived packet: SYS: %d, COMP: %d, LEN: %d, MSG ID: %d\n", msg.sysid, msg.compid, msg.len, msg.msgid);
+                handle_new_message(msg);
             }
-            handle_new_message(msg);
         }
-        printf("\n");
+        // printf("\n");
     }
     memset(buf, 0, BUFFER_LENGTH);
 }
